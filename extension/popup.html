@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Phishing Detector</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+
+    <div class="header">
+      <span class="header-icon">🛡️</span>
+      <h1>Phishing Detector</h1>
+    </div>
+
+    <div id="status-loading" class="status-box loading hidden">
+      <span class="status-icon">⏳</span>
+      <div>
+        <span class="status-label">Analyzing...</span>
+        <span class="status-detail">Checking this page for phishing signals</span>
+      </div>
+    </div>
+
+    <div id="status-safe" class="status-box safe hidden">
+      <span class="status-icon">✅</span>
+      <div>
+        <span class="status-label">SAFE</span>
+        <span id="safe-detail" class="status-detail"></span>
+      </div>
+    </div>
+
+    <div id="status-phishing" class="status-box danger hidden">
+      <span class="status-icon">⚠️</span>
+      <div>
+        <span class="status-label">PHISHING WARNING</span>
+        <span id="phishing-detail" class="status-detail"></span>
+      </div>
+    </div>
+
+    <div id="status-error" class="status-box error hidden">
+      <span class="status-icon">❌</span>
+      <div>
+        <span class="status-label">Could not analyze</span>
+        <span id="error-detail" class="status-detail">
+          Make sure the API server is running:<br>
+          uvicorn src.api.app:app --reload --port 8000
+        </span>
+      </div>
+    </div>
+
+    <div id="url-display" class="url-box hidden">
+      Analyzing: <span id="url-text"></span>
+    </div>
+
+    <div id="features-section" class="features-section hidden">
+      <h3>Top indicators:</h3>
+      <ul id="features-list" class="features-list"></ul>
+    </div>
+
+    <button id="check-btn" class="check-button">Check This Page</button>
+
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
