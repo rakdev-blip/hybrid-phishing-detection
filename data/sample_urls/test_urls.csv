@@ -1,0 +1,12 @@
+url,expected_label,notes
+https://www.google.com,legitimate,Major search engine
+https://www.github.com,legitimate,Software development platform
+https://www.wikipedia.org,legitimate,Encyclopedia
+https://www.amazon.com,legitimate,E-commerce site
+https://www.microsoft.com,legitimate,Technology company
+https://www.bbc.com,legitimate,News organization
+http://paypa1-login.secure-account-verify.com,phishing,Misspelled paypal + suspicious keywords
+http://192.168.1.1/admin/bank-login,phishing,IP address + suspicious path
+http://amazon-account-suspended.update-info-now.com,phishing,Brand name used as subdomain
+http://microsoft-support-update.verify-account.net,phishing,Multiple suspicious keywords
+http://ebay-security-alert.confirm-your-identity.org,phishing,Social engineering language
