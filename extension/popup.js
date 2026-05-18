@@ -2,15 +2,19 @@ const API_URL = 'http://localhost:8000';
 
 function showStatus(statusId) {
   ['status-loading', 'status-safe', 'status-phishing', 'status-error'].forEach(function(id) {
-    document.getElementById(id).classList.add('hidden');
+    var el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
   });
   if (statusId) {
-    document.getElementById(statusId).classList.remove('hidden');
+    var target = document.getElementById(statusId);
+    if (target) target.classList.remove('hidden');
   }
 }
 
 function displayFeatures(topFeatures) {
+  if (!topFeatures || topFeatures.length === 0) return;
   var list = document.getElementById('features-list');
+  if (!list) return;
   list.innerHTML = '';
   topFeatures.forEach(function(feat) {
     var li = document.createElement('li');
@@ -19,39 +23,56 @@ function displayFeatures(topFeatures) {
     li.textContent = icon + ' ' + feat.feature + ' = ' + value;
     list.appendChild(li);
   });
-  document.getElementById('features-section').classList.remove('hidden');
+  var section = document.getElementById('features-section');
+  if (section) section.classList.remove('hidden');
 }
 
 async function checkCurrentPage() {
   var button = document.getElementById('check-btn');
-  button.disabled = true;
-  button.textContent = 'Analyzing...';
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Analyzing...';
+  }
 
-  document.getElementById('url-display').classList.add('hidden');
-  document.getElementById('features-section').classList.add('hidden');
-  showStatus('loading');
+  var urlDisplay = document.getElementById('url-display');
+  var featuresSection = document.getElementById('features-section');
+  if (urlDisplay) urlDisplay.classList.add('hidden');
+  if (featuresSection) featuresSection.classList.add('hidden');
+
+  showStatus('status-loading');
 
   try {
     var tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (!tabs || tabs.length === 0) {
+      showStatus('status-error');
+      var errEl = document.getElementById('error-detail');
+      if (errEl) errEl.textContent = 'Could not get current tab.';
+      return;
+    }
+
     var url = tabs[0].url;
 
-    var displayUrl = url.length > 55 ? url.substring(0, 55) + '...' : url;
-    document.getElementById('url-text').textContent = displayUrl;
-    document.getElementById('url-display').classList.remove('hidden');
+    var urlText = document.getElementById('url-text');
+    if (urlText) {
+      urlText.textContent = url.length > 55 ? url.substring(0, 55) + '...' : url;
+    }
+    if (urlDisplay) urlDisplay.classList.remove('hidden');
 
     if (url.startsWith('chrome://') ||
         url.startsWith('chrome-extension://') ||
-        url.startsWith('about:')) {
-      showStatus('error');
-      document.getElementById('error-detail').textContent =
-        'Cannot analyze browser internal pages.';
+        url.startsWith('about:') ||
+        url.startsWith('edge://')) {
+      showStatus('status-error');
+      var errEl = document.getElementById('error-detail');
+      if (errEl) errEl.textContent = 'Cannot analyze browser internal pages.';
       return;
     }
 
     var response = await fetch(API_URL + '/predict', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: url })
+      body: JSON.stringify({ url: url, fast: true })
     });
 
     if (!response.ok) {
@@ -63,13 +84,17 @@ async function checkCurrentPage() {
     var confidencePct = (data.confidence * 100).toFixed(1);
 
     if (data.prediction === 'phishing') {
-      showStatus('phishing');
-      document.getElementById('phishing-detail').textContent =
-        'Confidence: ' + confidencePct + '% likely phishing. Proceed with caution.';
+      showStatus('status-phishing');
+      var phishEl = document.getElementById('phishing-detail');
+      if (phishEl) {
+        phishEl.textContent = 'Confidence: ' + confidencePct + '% likely phishing. Proceed with caution.';
+      }
     } else {
-      showStatus('safe');
-      document.getElementById('safe-detail').textContent =
-        'Phishing probability: ' + confidencePct + '%. This page appears safe.';
+      showStatus('status-safe');
+      var safeEl = document.getElementById('safe-detail');
+      if (safeEl) {
+        safeEl.textContent = 'Phishing probability: ' + confidencePct + '%. This page appears safe.';
+      }
     }
 
     if (data.top_features && data.top_features.length > 0) {
@@ -77,24 +102,30 @@ async function checkCurrentPage() {
     }
 
   } catch (error) {
-    showStatus('error');
-    if (error.message.includes('Failed to fetch') ||
-        error.message.includes('NetworkError') ||
-        error.message.includes('ERR_CONNECTION_REFUSED')) {
-      document.getElementById('error-detail').textContent =
-        'Cannot connect to the analysis server. ' +
-        'Start it with: uvicorn src.api.app:app --reload --port 8000';
-    } else {
-      document.getElementById('error-detail').textContent =
-        'Error: ' + error.message;
+    showStatus('status-error');
+    var errEl = document.getElementById('error-detail');
+    if (errEl) {
+      if (error.message.includes('Failed to fetch') ||
+          error.message.includes('NetworkError') ||
+          error.message.includes('ERR_CONNECTION_REFUSED') ||
+          error.message.includes('Load failed')) {
+        errEl.textContent = 'Cannot connect to the analysis server. Start it with: uvicorn src.api.app:app --reload --port 8000';
+      } else {
+        errEl.textContent = 'Error: ' + error.message;
+      }
     }
   } finally {
-    button.disabled = false;
-    button.textContent = 'Check This Page';
+    if (button) {
+      button.disabled = false;
+      button.textContent = 'Check This Page';
+    }
   }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
   checkCurrentPage();
-  document.getElementById('check-btn').addEventListener('click', checkCurrentPage);
+  var btn = document.getElementById('check-btn');
+  if (btn) {
+    btn.addEventListener('click', checkCurrentPage);
+  }
 });
