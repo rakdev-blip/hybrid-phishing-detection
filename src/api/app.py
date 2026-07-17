@@ -21,6 +21,41 @@ sys.path.insert(0, project_root)
 from src.models.predict import predict_url, load_model
 from src.models.explain import get_top_features
 
+# Permanent whitelist of globally trusted domains
+# These domains bypass the ML model entirely and always return legitimate
+# Add any domain here that you know is legitimate but gets false positives
+TRUSTED_DOMAIN_WHITELIST = {
+    'google.com', 'www.google.com',
+    'github.com', 'www.github.com',
+    'youtube.com', 'www.youtube.com',
+    'wikipedia.org', 'www.wikipedia.org', 'en.wikipedia.org',
+    'facebook.com', 'www.facebook.com',
+    'twitter.com', 'www.twitter.com', 'x.com', 'www.x.com',
+    'instagram.com', 'www.instagram.com',
+    'linkedin.com', 'www.linkedin.com',
+    'netflix.com', 'www.netflix.com',
+    'amazon.com', 'www.amazon.com',
+    'reddit.com', 'www.reddit.com',
+    'microsoft.com', 'www.microsoft.com',
+    'apple.com', 'www.apple.com',
+    'bbc.com', 'www.bbc.com',
+    'discord.com', 'www.discord.com',
+    'spotify.com', 'www.spotify.com',
+    'stackoverflow.com', 'www.stackoverflow.com',
+    'medium.com', 'www.medium.com',
+    'notion.so', 'www.notion.so',
+    'canva.com', 'www.canva.com',
+    'figma.com', 'www.figma.com',
+    'dropbox.com', 'www.dropbox.com',
+    'zoom.us', 'www.zoom.us',
+    'slack.com', 'www.slack.com',
+    'trello.com', 'www.trello.com',
+    'atlassian.com', 'www.atlassian.com',
+    'coursera.org', 'www.coursera.org',
+    'udemy.com', 'www.udemy.com',
+    'khanacademy.org', 'www.khanacademy.org',
+}
+
 app = FastAPI(
     title="Phishing Detection API",
     description="Hybrid ML-based phishing URL detection with SHAP explainability",
@@ -72,6 +107,24 @@ async def predict(request: URLRequest):
 
     if not url.startswith('http://') and not url.startswith('https://'):
         url = 'http://' + url
+    
+    # Check whitelist before running the model
+    # Whitelisted domains always return legitimate regardless of model output
+    from urllib.parse import urlparse as _urlparse
+    import tldextract as _tldextract
+    _parsed = _urlparse(url)
+    _hostname = _parsed.netloc.lower()
+    _extracted = _tldextract.extract(url)
+    _registered = (_extracted.domain + '.' + _extracted.suffix).lower()
+
+    if _hostname in TRUSTED_DOMAIN_WHITELIST or _registered in TRUSTED_DOMAIN_WHITELIST:
+        return {
+            "url": url,
+            "prediction": "legitimate",
+            "confidence": 0.01,
+            "top_features": [],
+            "source": "whitelist"
+        }
 
     try:
         result = predict_url(url, model=model)
