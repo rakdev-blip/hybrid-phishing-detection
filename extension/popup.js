@@ -51,28 +51,41 @@ async function checkCurrentPage() {
       return;
     }
 
-    var url = tabs[0].url;
+    var fullUrl = tabs[0].url;
 
-    var urlText = document.getElementById('url-text');
-    if (urlText) {
-      urlText.textContent = url.length > 55 ? url.substring(0, 55) + '...' : url;
-    }
-    if (urlDisplay) urlDisplay.classList.remove('hidden');
-
-    if (url.startsWith('chrome://') ||
-        url.startsWith('chrome-extension://') ||
-        url.startsWith('about:') ||
-        url.startsWith('edge://')) {
+    // Skip internal browser pages
+    if (fullUrl.startsWith('chrome://') ||
+        fullUrl.startsWith('chrome-extension://') ||
+        fullUrl.startsWith('about:') ||
+        fullUrl.startsWith('edge://')) {
       showStatus('status-error');
       var errEl = document.getElementById('error-detail');
       if (errEl) errEl.textContent = 'Cannot analyze browser internal pages.';
       return;
     }
 
+    // Extract only the base domain (protocol + hostname)
+    // This is the permanent fix for false positives on legitimate URLs with paths
+    // e.g. https://github.com/username/repo → https://github.com
+    // e.g. https://youtube.com/watch?v=abc → https://youtube.com
+    // The domain is what matters for phishing — not the path
+    var urlObj = new URL(fullUrl);
+    var baseUrl = urlObj.protocol + '//' + urlObj.hostname;
+
+    // Show the domain being checked (not the full path)
+    var urlText = document.getElementById('url-text');
+    if (urlText) {
+      urlText.textContent = baseUrl.length > 55
+        ? baseUrl.substring(0, 55) + '...'
+        : baseUrl;
+    }
+    if (urlDisplay) urlDisplay.classList.remove('hidden');
+
+    // Call the API with the base domain only
     var response = await fetch(API_URL + '/predict', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: url, fast: true })
+      body: JSON.stringify({ url: baseUrl, fast: true })
     });
 
     if (!response.ok) {
@@ -87,13 +100,15 @@ async function checkCurrentPage() {
       showStatus('status-phishing');
       var phishEl = document.getElementById('phishing-detail');
       if (phishEl) {
-        phishEl.textContent = 'Confidence: ' + confidencePct + '% likely phishing. Proceed with caution.';
+        phishEl.textContent = 'Confidence: ' + confidencePct +
+          '% likely phishing. Proceed with caution.';
       }
     } else {
       showStatus('status-safe');
       var safeEl = document.getElementById('safe-detail');
       if (safeEl) {
-        safeEl.textContent = 'Phishing probability: ' + confidencePct + '%. This page appears safe.';
+        safeEl.textContent = 'Phishing probability: ' + confidencePct +
+          '%. This page appears safe.';
       }
     }
 
@@ -109,7 +124,9 @@ async function checkCurrentPage() {
           error.message.includes('NetworkError') ||
           error.message.includes('ERR_CONNECTION_REFUSED') ||
           error.message.includes('Load failed')) {
-        errEl.textContent = 'Cannot connect to the analysis server. Start it with: uvicorn src.api.app:app --reload --port 8000';
+        errEl.textContent =
+          'Cannot connect to the analysis server. ' +
+          'Start it with: uvicorn src.api.app:app --reload --port 8000';
       } else {
         errEl.textContent = 'Error: ' + error.message;
       }
